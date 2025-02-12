@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <!-- Ensure mobile responsiveness -->
+  <!-- For mobile responsiveness -->
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Advanced 3D Text Generator</title>
+  <title>Advanced 3D Text Generator (TTF/OTF Supported)</title>
   <style>
     /* Reset & layout */
     body, html {
@@ -29,7 +29,7 @@
       border-radius: 4px;
       cursor: pointer;
     }
-    /* Container for the WebGL preview */
+    /* Live preview container */
     #canvasContainer {
       width: 100%;
       height: 60%;
@@ -66,9 +66,9 @@
   </style>
 </head>
 <body>
-  <!-- Export button -->
+  <!-- Export Button -->
   <button id="exportBtn">Export PNG</button>
-  <!-- Live preview container -->
+  <!-- Live Preview Container -->
   <div id="canvasContainer"></div>
   <!-- Controls Panel -->
   <div id="controls">
@@ -78,8 +78,8 @@
       <input type="text" id="textInput" value="Hello 3D" />
     </div>
     <div class="control-group">
-      <label for="fontUpload">Upload Font (JSON)</label>
-      <input type="file" id="fontUpload" accept=".json" />
+      <label for="fontUpload">Upload Font (TTF, OTF, or JSON)</label>
+      <input type="file" id="fontUpload" accept=".ttf,.otf,.json" />
     </div>
     <div class="control-group">
       <label for="fontSize">Font Size</label>
@@ -226,17 +226,22 @@
     </div>
   </div>
 
-  <!-- Three.js and extras -->
+  <!-- Three.js and required extras -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- OrbitControls for live preview -->
   <script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+  <!-- FontLoader for JSON fonts -->
   <script src="https://threejs.org/examples/js/loaders/FontLoader.js"></script>
+  <!-- TTFLoader for TTF/OTF files -->
+  <script src="https://threejs.org/examples/js/loaders/TTFLoader.js"></script>
+  <!-- TextGeometry -->
   <script src="https://threejs.org/examples/js/geometries/TextGeometry.js"></script>
   <script>
     let scene, camera, renderer, orbitControls;
     let textMesh, outlineMesh;
-    let font;
+    let font; // current THREE.Font instance
     let texture; // for uploaded texture image
-    // Initialize scene
+
     init();
     animate();
 
@@ -252,7 +257,7 @@
       renderer.setSize(container.clientWidth, container.clientHeight);
       container.appendChild(renderer.domElement);
 
-      // OrbitControls for live preview
+      // OrbitControls for live interaction
       orbitControls = new THREE.OrbitControls(camera, renderer.domElement);
 
       // Ambient Light
@@ -277,13 +282,13 @@
         createText();
       });
 
-      // Set up UI event listeners (after page load)
+      // Set up UI event listeners after page load
       window.addEventListener('load', setupUI);
       window.addEventListener('resize', onWindowResize);
     }
 
     function setupUI() {
-      // Text & Font
+      // Text & Font Options
       document.getElementById('textInput').addEventListener('input', createText);
       document.getElementById('fontSize').addEventListener('input', createText);
       document.getElementById('textDepth').addEventListener('input', createText);
@@ -322,7 +327,7 @@
       document.getElementById('rotationZ').addEventListener('input', updateRotation);
       document.getElementById('textScale').addEventListener('input', updateScale);
 
-      // Lighting
+      // Lighting Controls
       document.getElementById('ambientIntensity').addEventListener('input', updateLights);
       document.getElementById('ambientColor').addEventListener('input', updateLights);
       document.getElementById('dirIntensity').addEventListener('input', updateLights);
@@ -331,14 +336,14 @@
       document.getElementById('dirPosY').addEventListener('input', updateLights);
       document.getElementById('dirPosZ').addEventListener('input', updateLights);
 
-      // Export
+      // Export Button
       document.getElementById('exportBtn').addEventListener('click', exportPNG);
 
       // Set initial fill-style UI state
       updateFillStyleUI();
     }
 
-    // Create (or recreate) the 3D text mesh
+    // Create or recreate the 3D text mesh
     function createText() {
       // Remove existing text and outline meshes
       if (textMesh) {
@@ -353,7 +358,7 @@
         outlineMesh.material.dispose();
         outlineMesh = null;
       }
-      if (!font) return; // Wait for font to load
+      if (!font) return; // Wait until font is loaded
 
       const text = document.getElementById('textInput').value || "Hello 3D";
       const size = parseFloat(document.getElementById('fontSize').value);
@@ -386,7 +391,7 @@
       updateOutline();
     }
 
-    // Returns a material based on the selected material type and fill style.
+    // Returns a material based on the selected options
     function getSelectedMaterial() {
       const materialType = document.getElementById('materialSelect').value;
       const fillStyle = document.getElementById('fillStyle').value;
@@ -414,7 +419,6 @@
       }
 
       let matOptions = { color: baseColor, map: map };
-
       let mat;
       switch (materialType) {
         case 'standard':
@@ -445,11 +449,10 @@
       canvas.height = 256;
       const ctx = canvas.getContext('2d');
       const angle = parseFloat(document.getElementById('gradientAngle').value) * Math.PI / 180;
-      // Calculate gradient start and end points based on angle
-      const x0 = canvas.width/2 - Math.cos(angle) * canvas.width/2;
-      const y0 = canvas.height/2 - Math.sin(angle) * canvas.height/2;
-      const x1 = canvas.width/2 + Math.cos(angle) * canvas.width/2;
-      const y1 = canvas.height/2 + Math.sin(angle) * canvas.height/2;
+      const x0 = canvas.width / 2 - Math.cos(angle) * canvas.width / 2;
+      const y0 = canvas.height / 2 - Math.sin(angle) * canvas.height / 2;
+      const x1 = canvas.width / 2 + Math.cos(angle) * canvas.width / 2;
+      const y1 = canvas.height / 2 + Math.sin(angle) * canvas.height / 2;
       const grad = ctx.createLinearGradient(x0, y0, x1, y1);
       grad.addColorStop(0, document.getElementById('gradientStart').value);
       grad.addColorStop(1, document.getElementById('gradientEnd').value);
@@ -468,7 +471,7 @@
       }
     }
 
-    // Update rotation based on slider values (in radians)
+    // Update rotation from slider values (converted to radians)
     function updateRotation() {
       if (textMesh) {
         textMesh.rotation.x = THREE.Math.degToRad(document.getElementById('rotationX').value);
@@ -489,13 +492,12 @@
       if (outlineMesh && textMesh) {
         const scale = parseFloat(document.getElementById('textScale').value);
         const outlineThickness = parseFloat(document.getElementById('outlineDepth').value);
-        // Multiply the text scale by a factor based on the outline thickness
         const scaleFactor = 1 + outlineThickness / 100;
         outlineMesh.scale.set(scale * scaleFactor, scale * scaleFactor, scale * scaleFactor);
       }
     }
 
-    // Update (or create) the outline mesh based on outline settings
+    // Update or create the outline mesh
     function updateOutline() {
       const outlineThickness = parseFloat(document.getElementById('outlineDepth').value);
       if (outlineMesh) {
@@ -518,7 +520,7 @@
       }
     }
 
-    // Update lighting based on controls
+    // Update lighting based on control values
     function updateLights() {
       const ambientLight = scene.getObjectByName('ambientLight');
       ambientLight.intensity = parseFloat(document.getElementById('ambientIntensity').value);
@@ -534,7 +536,7 @@
       );
     }
 
-    // Export the canvas as a PNG image
+    // Export the current view as a PNG file
     function exportPNG() {
       renderer.render(scene, camera);
       const dataURL = renderer.domElement.toDataURL("image/png");
@@ -544,7 +546,7 @@
       link.click();
     }
 
-    // Adjust the renderer on window resize
+    // Adjust renderer on window resize
     function onWindowResize() {
       const container = document.getElementById('canvasContainer');
       camera.aspect = container.clientWidth / container.clientHeight;
@@ -573,21 +575,43 @@
       document.getElementById('textureOffsetGroupY').style.display = (fillStyle === 'texture') ? 'block' : 'none';
     }
 
-    // Handle font file upload
+    // Handle font file upload (TTF, OTF, or JSON)
     function handleFontUpload(event) {
       const file = event.target.files[0];
       if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        try {
-          const fontJson = JSON.parse(e.target.result);
-          font = new THREE.Font(fontJson);
-          createText();
-        } catch (err) {
-          alert("Error parsing font file. Please ensure it is a valid JSON font.");
-        }
-      };
-      reader.readAsText(file);
+      const extension = file.name.split('.').pop().toLowerCase();
+      
+      if (extension === 'ttf' || extension === 'otf') {
+        // Use TTFLoader: read as ArrayBuffer
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const arrayBuffer = e.target.result;
+          const ttfLoader = new THREE.TTFLoader();
+          try {
+            const fontJson = ttfLoader.parse(arrayBuffer);
+            font = new THREE.Font(fontJson);
+            createText();
+          } catch (err) {
+            alert("Error parsing TTF/OTF file.");
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      } else if (extension === 'json') {
+        // Use JSON parser
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          try {
+            const fontJson = JSON.parse(e.target.result);
+            font = new THREE.Font(fontJson);
+            createText();
+          } catch (err) {
+            alert("Error parsing JSON font file.");
+          }
+        };
+        reader.readAsText(file);
+      } else {
+        alert("Unsupported font file format. Please upload a TTF, OTF, or JSON font file.");
+      }
     }
 
     // Handle texture image upload
