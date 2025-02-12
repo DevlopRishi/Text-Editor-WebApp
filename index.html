@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <!-- Ensure mobile responsiveness -->
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Advanced 3D Text Generator</title>
+  <style>
+    /* Reset & layout */
+    body, html {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+    }
+    /* Export button at the top */
+    #exportBtn {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      padding: 10px 20px;
+      background: #4285f4;
+      border: none;
+      color: #fff;
+      font-size: 16px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    /* Container for the WebGL preview */
+    #canvasContainer {
+      width: 100%;
+      height: 60%;
+      background: #ddd;
+    }
+    /* Bottom controls panel */
+    #controls {
+      width: 100%;
+      height: 40%;
+      background: #f0f0f0;
+      overflow-y: auto;
+      padding: 10px;
+      box-sizing: border-box;
+      font-size: 14px;
+    }
+    .control-group {
+      margin-bottom: 8px;
+    }
+    .control-group label {
+      display: block;
+      margin-bottom: 3px;
+    }
+    .control-group input,
+    .control-group select {
+      width: 100%;
+      padding: 4px;
+      box-sizing: border-box;
+    }
+    h3 {
+      margin: 10px 0 5px;
+      padding-bottom: 2px;
+      border-bottom: 1px solid #ccc;
+    }
+  </style>
+</head>
+<body>
+  <!-- Export button -->
+  <button id="exportBtn">Export PNG</button>
+  <!-- Live preview container -->
+  <div id="canvasContainer"></div>
+  <!-- Controls Panel -->
+  <div id="controls">
+    <!-- Text & Font Options -->
+    <div class="control-group">
+      <label for="textInput">Text</label>
+      <input type="text" id="textInput" value="Hello 3D" />
+    </div>
+    <div class="control-group">
+      <label for="fontUpload">Upload Font (JSON)</label>
+      <input type="file" id="fontUpload" accept=".json" />
+    </div>
+    <div class="control-group">
+      <label for="fontSize">Font Size</label>
+      <input type="range" id="fontSize" min="10" max="100" value="50" />
+    </div>
+    <div class="control-group">
+      <label for="textDepth">Text Depth (Extrusion)</label>
+      <input type="range" id="textDepth" min="1" max="50" value="10" />
+    </div>
+    <!-- Bevel Options -->
+    <h3>Bevel Options</h3>
+    <div class="control-group">
+      <label for="bevelEnabled">Bevel Enabled</label>
+      <input type="checkbox" id="bevelEnabled" />
+    </div>
+    <div class="control-group">
+      <label for="bevelThickness">Bevel Thickness</label>
+      <input type="range" id="bevelThickness" min="0" max="10" step="0.1" value="1" />
+    </div>
+    <div class="control-group">
+      <label for="bevelSize">Bevel Size</label>
+      <input type="range" id="bevelSize" min="0" max="10" step="0.1" value="1" />
+    </div>
+    <div class="control-group">
+      <label for="bevelSegments">Bevel Segments</label>
+      <input type="range" id="bevelSegments" min="1" max="5" value="3" />
+    </div>
+    <!-- Material & Fill Options -->
+    <h3>Material & Fill Options</h3>
+    <div class="control-group">
+      <label for="materialSelect">Material Type</label>
+      <select id="materialSelect">
+        <option value="standard">Standard (Metallic)</option>
+        <option value="phong">Phong</option>
+        <option value="basic">Basic</option>
+        <option value="lambert">Lambert</option>
+        <option value="physical">Physical</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label for="fillStyle">Fill Style</label>
+      <select id="fillStyle">
+        <option value="solid">Solid Color</option>
+        <option value="gradient">Gradient</option>
+        <option value="texture">Texture</option>
+      </select>
+    </div>
+    <!-- Solid Color Option -->
+    <div class="control-group" id="solidColorGroup">
+      <label for="textColor">Text Color</label>
+      <input type="color" id="textColor" value="#ff0000" />
+    </div>
+    <!-- Gradient Options -->
+    <div class="control-group" id="gradientGroup" style="display: none;">
+      <label for="gradientStart">Gradient Start Color</label>
+      <input type="color" id="gradientStart" value="#ff0000" />
+    </div>
+    <div class="control-group" id="gradientGroupEnd" style="display: none;">
+      <label for="gradientEnd">Gradient End Color</label>
+      <input type="color" id="gradientEnd" value="#0000ff" />
+    </div>
+    <div class="control-group" id="gradientAngleGroup" style="display: none;">
+      <label for="gradientAngle">Gradient Angle (degrees)</label>
+      <input type="range" id="gradientAngle" min="0" max="360" value="0" />
+    </div>
+    <!-- Texture Options -->
+    <div class="control-group" id="textureGroup" style="display: none;">
+      <label for="textureUpload">Upload Texture Image</label>
+      <input type="file" id="textureUpload" accept="image/*" />
+    </div>
+    <div class="control-group" id="textureScaleGroup" style="display: none;">
+      <label for="textureScaleX">Texture Scale X</label>
+      <input type="range" id="textureScaleX" min="0.1" max="5" step="0.1" value="1" />
+    </div>
+    <div class="control-group" id="textureScaleGroupY" style="display: none;">
+      <label for="textureScaleY">Texture Scale Y</label>
+      <input type="range" id="textureScaleY" min="0.1" max="5" step="0.1" value="1" />
+    </div>
+    <div class="control-group" id="textureOffsetGroup" style="display: none;">
+      <label for="textureOffsetX">Texture Offset X</label>
+      <input type="range" id="textureOffsetX" min="-1" max="1" step="0.1" value="0" />
+    </div>
+    <div class="control-group" id="textureOffsetGroupY" style="display: none;">
+      <label for="textureOffsetY">Texture Offset Y</label>
+      <input type="range" id="textureOffsetY" min="-1" max="1" step="0.1" value="0" />
+    </div>
+    <!-- Outline Options -->
+    <h3>Outline Options</h3>
+    <div class="control-group">
+      <label for="outlineDepth">Outline Thickness</label>
+      <input type="range" id="outlineDepth" min="0" max="20" step="0.5" value="0" />
+    </div>
+    <div class="control-group">
+      <label for="outlineColor">Outline Color</label>
+      <input type="color" id="outlineColor" value="#000000" />
+    </div>
+    <!-- Transformation Options -->
+    <h3>Transformations</h3>
+    <div class="control-group">
+      <label for="rotationX">Rotation X (degrees)</label>
+      <input type="range" id="rotationX" min="0" max="360" value="0" />
+    </div>
+    <div class="control-group">
+      <label for="rotationY">Rotation Y (degrees)</label>
+      <input type="range" id="rotationY" min="0" max="360" value="0" />
+    </div>
+    <div class="control-group">
+      <label for="rotationZ">Rotation Z (degrees)</label>
+      <input type="range" id="rotationZ" min="0" max="360" value="0" />
+    </div>
+    <div class="control-group">
+      <label for="textScale">Text Scale</label>
+      <input type="range" id="textScale" min="0.1" max="3" step="0.1" value="1" />
+    </div>
+    <!-- Lighting Controls -->
+    <h3>Lighting Controls</h3>
+    <div class="control-group">
+      <label for="ambientIntensity">Ambient Light Intensity</label>
+      <input type="range" id="ambientIntensity" min="0" max="2" step="0.1" value="1" />
+    </div>
+    <div class="control-group">
+      <label for="ambientColor">Ambient Light Color</label>
+      <input type="color" id="ambientColor" value="#ffffff" />
+    </div>
+    <div class="control-group">
+      <label for="dirIntensity">Directional Light Intensity</label>
+      <input type="range" id="dirIntensity" min="0" max="2" step="0.1" value="1" />
+    </div>
+    <div class="control-group">
+      <label for="dirColor">Directional Light Color</label>
+      <input type="color" id="dirColor" value="#ffffff" />
+    </div>
+    <div class="control-group">
+      <label for="dirPosX">Directional Light Position X</label>
+      <input type="range" id="dirPosX" min="-100" max="100" value="50" />
+    </div>
+    <div class="control-group">
+      <label for="dirPosY">Directional Light Position Y</label>
+      <input type="range" id="dirPosY" min="-100" max="100" value="50" />
+    </div>
+    <div class="control-group">
+      <label for="dirPosZ">Directional Light Position Z</label>
+      <input type="range" id="dirPosZ" min="-100" max="100" value="50" />
+    </div>
+  </div>
+
+  <!-- Three.js and extras -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://threejs.org/examples/js/loaders/FontLoader.js"></script>
+  <script src="https://threejs.org/examples/js/geometries/TextGeometry.js"></script>
+  <script>
+    let scene, camera, renderer, orbitControls;
+    let textMesh, outlineMesh;
+    let font;
+    let texture; // for uploaded texture image
+    // Initialize scene
+    init();
+    animate();
+
+    function init() {
+      const container = document.getElementById('canvasContainer');
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0xeeeeee);
+
+      camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+      camera.position.set(0, 0, 200);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      container.appendChild(renderer.domElement);
+
+      // OrbitControls for live preview
+      orbitControls = new THREE.OrbitControls(camera, renderer.domElement);
+
+      // Ambient Light
+      const ambientLight = new THREE.AmbientLight(0xffffff, parseFloat(document.getElementById('ambientIntensity').value));
+      ambientLight.name = 'ambientLight';
+      scene.add(ambientLight);
+
+      // Directional Light
+      const directionalLight = new THREE.DirectionalLight(0xffffff, parseFloat(document.getElementById('dirIntensity').value));
+      directionalLight.position.set(
+        parseFloat(document.getElementById('dirPosX').value),
+        parseFloat(document.getElementById('dirPosY').value),
+        parseFloat(document.getElementById('dirPosZ').value)
+      );
+      directionalLight.name = 'directionalLight';
+      scene.add(directionalLight);
+
+      // Load default font (helvetiker)
+      const loader = new THREE.FontLoader();
+      loader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', function(loadedFont) {
+        font = loadedFont;
+        createText();
+      });
+
+      // Set up UI event listeners (after page load)
+      window.addEventListener('load', setupUI);
+      window.addEventListener('resize', onWindowResize);
+    }
+
+    function setupUI() {
+      // Text & Font
+      document.getElementById('textInput').addEventListener('input', createText);
+      document.getElementById('fontSize').addEventListener('input', createText);
+      document.getElementById('textDepth').addEventListener('input', createText);
+      document.getElementById('bevelEnabled').addEventListener('change', createText);
+      document.getElementById('bevelThickness').addEventListener('input', createText);
+      document.getElementById('bevelSize').addEventListener('input', createText);
+      document.getElementById('bevelSegments').addEventListener('input', createText);
+      document.getElementById('fontUpload').addEventListener('change', handleFontUpload);
+
+      // Material & Fill Options
+      document.getElementById('materialSelect').addEventListener('change', updateMaterial);
+      document.getElementById('fillStyle').addEventListener('change', function() {
+        updateFillStyleUI();
+        updateMaterial();
+      });
+      document.getElementById('textColor').addEventListener('input', updateMaterial);
+      document.getElementById('gradientStart').addEventListener('input', updateMaterial);
+      document.getElementById('gradientEnd').addEventListener('input', updateMaterial);
+      document.getElementById('gradientAngle').addEventListener('input', updateMaterial);
+      document.getElementById('textureUpload').addEventListener('change', handleTextureUpload);
+      document.getElementById('textureScaleX').addEventListener('input', updateMaterial);
+      document.getElementById('textureScaleY').addEventListener('input', updateMaterial);
+      document.getElementById('textureOffsetX').addEventListener('input', updateMaterial);
+      document.getElementById('textureOffsetY').addEventListener('input', updateMaterial);
+
+      // Outline Options
+      document.getElementById('outlineDepth').addEventListener('input', function() {
+        updateOutline();
+        updateScale();
+      });
+      document.getElementById('outlineColor').addEventListener('input', updateOutline);
+
+      // Transformations
+      document.getElementById('rotationX').addEventListener('input', updateRotation);
+      document.getElementById('rotationY').addEventListener('input', updateRotation);
+      document.getElementById('rotationZ').addEventListener('input', updateRotation);
+      document.getElementById('textScale').addEventListener('input', updateScale);
+
+      // Lighting
+      document.getElementById('ambientIntensity').addEventListener('input', updateLights);
+      document.getElementById('ambientColor').addEventListener('input', updateLights);
+      document.getElementById('dirIntensity').addEventListener('input', updateLights);
+      document.getElementById('dirColor').addEventListener('input', updateLights);
+      document.getElementById('dirPosX').addEventListener('input', updateLights);
+      document.getElementById('dirPosY').addEventListener('input', updateLights);
+      document.getElementById('dirPosZ').addEventListener('input', updateLights);
+
+      // Export
+      document.getElementById('exportBtn').addEventListener('click', exportPNG);
+
+      // Set initial fill-style UI state
+      updateFillStyleUI();
+    }
+
+    // Create (or recreate) the 3D text mesh
+    function createText() {
+      // Remove existing text and outline meshes
+      if (textMesh) {
+        scene.remove(textMesh);
+        textMesh.geometry.dispose();
+        textMesh.material.dispose();
+        textMesh = null;
+      }
+      if (outlineMesh) {
+        scene.remove(outlineMesh);
+        outlineMesh.geometry.dispose();
+        outlineMesh.material.dispose();
+        outlineMesh = null;
+      }
+      if (!font) return; // Wait for font to load
+
+      const text = document.getElementById('textInput').value || "Hello 3D";
+      const size = parseFloat(document.getElementById('fontSize').value);
+      const depth = parseFloat(document.getElementById('textDepth').value);
+      const bevelEnabled = document.getElementById('bevelEnabled').checked;
+      const bevelThickness = parseFloat(document.getElementById('bevelThickness').value);
+      const bevelSize = parseFloat(document.getElementById('bevelSize').value);
+      const bevelSegments = parseInt(document.getElementById('bevelSegments').value);
+
+      const options = {
+        font: font,
+        size: size,
+        height: depth,
+        curveSegments: 12,
+        bevelEnabled: bevelEnabled,
+        bevelThickness: bevelEnabled ? bevelThickness : 0,
+        bevelSize: bevelEnabled ? bevelSize : 0,
+        bevelSegments: bevelEnabled ? bevelSegments : 0
+      };
+
+      const geometry = new THREE.TextGeometry(text, options);
+      geometry.center();
+
+      const material = getSelectedMaterial();
+      textMesh = new THREE.Mesh(geometry, material);
+      scene.add(textMesh);
+
+      updateRotation();
+      updateScale();
+      updateOutline();
+    }
+
+    // Returns a material based on the selected material type and fill style.
+    function getSelectedMaterial() {
+      const materialType = document.getElementById('materialSelect').value;
+      const fillStyle = document.getElementById('fillStyle').value;
+      let baseColor = new THREE.Color(0xffffff);
+      let map = null;
+
+      if (fillStyle === 'solid') {
+        baseColor = new THREE.Color(document.getElementById('textColor').value);
+      } else if (fillStyle === 'gradient') {
+        map = generateGradientTexture();
+      } else if (fillStyle === 'texture') {
+        if (texture) {
+          map = texture;
+          // Apply texture scale and offset
+          map.repeat.set(
+            parseFloat(document.getElementById('textureScaleX').value),
+            parseFloat(document.getElementById('textureScaleY').value)
+          );
+          map.offset.set(
+            parseFloat(document.getElementById('textureOffsetX').value),
+            parseFloat(document.getElementById('textureOffsetY').value)
+          );
+          map.needsUpdate = true;
+        }
+      }
+
+      let matOptions = { color: baseColor, map: map };
+
+      let mat;
+      switch (materialType) {
+        case 'standard':
+          mat = new THREE.MeshStandardMaterial(Object.assign(matOptions, { metalness: 0.8, roughness: 0.2 }));
+          break;
+        case 'phong':
+          mat = new THREE.MeshPhongMaterial(Object.assign(matOptions, { shininess: 100 }));
+          break;
+        case 'basic':
+          mat = new THREE.MeshBasicMaterial(matOptions);
+          break;
+        case 'lambert':
+          mat = new THREE.MeshLambertMaterial(matOptions);
+          break;
+        case 'physical':
+          mat = new THREE.MeshPhysicalMaterial(Object.assign(matOptions, { metalness: 0.5, roughness: 0.5 }));
+          break;
+        default:
+          mat = new THREE.MeshStandardMaterial(matOptions);
+      }
+      return mat;
+    }
+
+    // Generate a gradient texture using a canvas
+    function generateGradientTexture() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+      const angle = parseFloat(document.getElementById('gradientAngle').value) * Math.PI / 180;
+      // Calculate gradient start and end points based on angle
+      const x0 = canvas.width/2 - Math.cos(angle) * canvas.width/2;
+      const y0 = canvas.height/2 - Math.sin(angle) * canvas.height/2;
+      const x1 = canvas.width/2 + Math.cos(angle) * canvas.width/2;
+      const y1 = canvas.height/2 + Math.sin(angle) * canvas.height/2;
+      const grad = ctx.createLinearGradient(x0, y0, x1, y1);
+      grad.addColorStop(0, document.getElementById('gradientStart').value);
+      grad.addColorStop(1, document.getElementById('gradientEnd').value);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+      return texture;
+    }
+
+    // Update the material on the text mesh
+    function updateMaterial() {
+      if (textMesh) {
+        textMesh.material.dispose();
+        textMesh.material = getSelectedMaterial();
+      }
+    }
+
+    // Update rotation based on slider values (in radians)
+    function updateRotation() {
+      if (textMesh) {
+        textMesh.rotation.x = THREE.Math.degToRad(document.getElementById('rotationX').value);
+        textMesh.rotation.y = THREE.Math.degToRad(document.getElementById('rotationY').value);
+        textMesh.rotation.z = THREE.Math.degToRad(document.getElementById('rotationZ').value);
+      }
+      if (outlineMesh && textMesh) {
+        outlineMesh.rotation.copy(textMesh.rotation);
+      }
+    }
+
+    // Update overall scale
+    function updateScale() {
+      if (textMesh) {
+        const scale = parseFloat(document.getElementById('textScale').value);
+        textMesh.scale.set(scale, scale, scale);
+      }
+      if (outlineMesh && textMesh) {
+        const scale = parseFloat(document.getElementById('textScale').value);
+        const outlineThickness = parseFloat(document.getElementById('outlineDepth').value);
+        // Multiply the text scale by a factor based on the outline thickness
+        const scaleFactor = 1 + outlineThickness / 100;
+        outlineMesh.scale.set(scale * scaleFactor, scale * scaleFactor, scale * scaleFactor);
+      }
+    }
+
+    // Update (or create) the outline mesh based on outline settings
+    function updateOutline() {
+      const outlineThickness = parseFloat(document.getElementById('outlineDepth').value);
+      if (outlineMesh) {
+        scene.remove(outlineMesh);
+        outlineMesh.geometry.dispose();
+        outlineMesh.material.dispose();
+        outlineMesh = null;
+      }
+      if (outlineThickness > 0 && textMesh) {
+        const outlineGeometry = textMesh.geometry.clone();
+        const outlineMaterial = new THREE.MeshBasicMaterial({
+          color: document.getElementById('outlineColor').value,
+          side: THREE.BackSide
+        });
+        outlineMesh = new THREE.Mesh(outlineGeometry, outlineMaterial);
+        const scaleFactor = 1 + outlineThickness / 100;
+        outlineMesh.scale.copy(textMesh.scale).multiplyScalar(scaleFactor);
+        outlineMesh.rotation.copy(textMesh.rotation);
+        scene.add(outlineMesh);
+      }
+    }
+
+    // Update lighting based on controls
+    function updateLights() {
+      const ambientLight = scene.getObjectByName('ambientLight');
+      ambientLight.intensity = parseFloat(document.getElementById('ambientIntensity').value);
+      ambientLight.color.set(document.getElementById('ambientColor').value);
+
+      const directionalLight = scene.getObjectByName('directionalLight');
+      directionalLight.intensity = parseFloat(document.getElementById('dirIntensity').value);
+      directionalLight.color.set(document.getElementById('dirColor').value);
+      directionalLight.position.set(
+        parseFloat(document.getElementById('dirPosX').value),
+        parseFloat(document.getElementById('dirPosY').value),
+        parseFloat(document.getElementById('dirPosZ').value)
+      );
+    }
+
+    // Export the canvas as a PNG image
+    function exportPNG() {
+      renderer.render(scene, camera);
+      const dataURL = renderer.domElement.toDataURL("image/png");
+      const link = document.createElement('a');
+      link.href = dataURL;
+      link.download = '3dtext.png';
+      link.click();
+    }
+
+    // Adjust the renderer on window resize
+    function onWindowResize() {
+      const container = document.getElementById('canvasContainer');
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    }
+
+    // Animation loop
+    function animate() {
+      requestAnimationFrame(animate);
+      orbitControls.update();
+      renderer.render(scene, camera);
+    }
+
+    // Toggle which fill option controls are visible
+    function updateFillStyleUI() {
+      const fillStyle = document.getElementById('fillStyle').value;
+      document.getElementById('solidColorGroup').style.display = (fillStyle === 'solid') ? 'block' : 'none';
+      document.getElementById('gradientGroup').style.display = (fillStyle === 'gradient') ? 'block' : 'none';
+      document.getElementById('gradientGroupEnd').style.display = (fillStyle === 'gradient') ? 'block' : 'none';
+      document.getElementById('gradientAngleGroup').style.display = (fillStyle === 'gradient') ? 'block' : 'none';
+      document.getElementById('textureGroup').style.display = (fillStyle === 'texture') ? 'block' : 'none';
+      document.getElementById('textureScaleGroup').style.display = (fillStyle === 'texture') ? 'block' : 'none';
+      document.getElementById('textureScaleGroupY').style.display = (fillStyle === 'texture') ? 'block' : 'none';
+      document.getElementById('textureOffsetGroup').style.display = (fillStyle === 'texture') ? 'block' : 'none';
+      document.getElementById('textureOffsetGroupY').style.display = (fillStyle === 'texture') ? 'block' : 'none';
+    }
+
+    // Handle font file upload
+    function handleFontUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const fontJson = JSON.parse(e.target.result);
+          font = new THREE.Font(fontJson);
+          createText();
+        } catch (err) {
+          alert("Error parsing font file. Please ensure it is a valid JSON font.");
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // Handle texture image upload
+    function handleTextureUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      new THREE.TextureLoader().load(url, function(loadedTexture) {
+        texture = loadedTexture;
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        updateMaterial();
+      });
+    }
+  </script>
+</body>
+</html>
